@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <script>
+        function tree(n) {
+            printTreeTop(n);
+            printTreeBottom(n);
+        }
+
+        function printTreeTop(n) {
+            for (let i = 0; i < n; i++) {
+                let spaces = repeatchar(n - i - 1, ' ');
+                let stars = repeatchar(2 * i + 1, '*');
+                console.log(spaces + stars);
+            }
+        }
+
+        function printTreeBottom(n) {
+            let trunkHeight = Math.max(1, Math.floor(n / 3));
+            let trunkSpaces = repeatchar(n - 1, ' ');
+            for (let i = 0; i < trunkHeight; i++) {
+                console.log(trunkSpaces + '*');
+            }
+        }
+
+        function repeatchar(n, arg_char) {
+            return arg_char.repeat(n);
+        }
+
+        tree(4);
+    </script>
+</body>
+</html>
