@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>景點觀光展覽資訊 - Ajax example</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" 
+          rel="stylesheet" 
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" 
+          crossorigin="anonymous">
+    <style>
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body class="container mt-3">
+    <div class="header-container">
+        <h1>景點觀光展覽資訊</h1>
+        <input type="text" id="searchInput" class="form-control" style="width: 300px;" onchange="searchByName(this.value)">
+    </div>
+    
+    <table id="csie" class="table table-striped table-hover">
+        <tr>
+            <th style="background-color: #198754; color: white;">名稱</th>
+            <th style="background-color: #198754; color: white;">地點</th>
+            <th style="background-color: #198754; color: white;">票價</th>
+        </tr>
+        <!-- 資料會由JavaScript動態生成 -->
+    </table>
+    
+    <!-- 分頁控制區域會由JavaScript動態生成 -->
+    
+    <script>
+        // 全域變數定義
+        var dataset = [];        // 存放從API取得的資料
+        var currentPage = 1;     // 當前頁數
+        var itemsPerPage = 10;   // 每頁顯示項目數
+        var filteredData = [];   // 儲存過濾後的資料
+
+        // 定義 API 網址
+        var openUrl = "https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6";
+
+        // 頁面載入完成後執行
+        window.onload = function() {
+            // 發送 AJAX 請求獲取資料
+            fetchData();
+        };
+
+        // 發送 AJAX 請求獲取資料
+        function fetchData() {
+            // 建立 XMLHttpRequest 物件
+            var xhr = new XMLHttpRequest();
+            
+            // 開啟連線，使用 GET 方法，第三個參數 true 表示非同步請求
+            xhr.open('GET', openUrl, true);
+            
+            // 發送請求
+            xhr.send();
+            
+            // 監聽 readystatechange 事件，處理伺服器響應
+            xhr.onreadystatechange = function() {
+                // 檢查請求是否成功完成 (readyState 4 表示請求完成，status 200 表示成功)
+                if(this.readyState == 4 && this.status == 200) {
+                    // 將伺服器回傳的 JSON 字串解析為 JavaScript 物件
+                    dataset = JSON.parse(this.responseText);
+                    
+                    // 初始化過濾後的資料
+                    filteredData = [...dataset];
+                    
+                    // 創建分頁控制
+                    createPaginationControls();
+                    
+                    // 渲染資料到頁面
+                    renderData();
+                }
+            };
+        }
+
+        // 創建分頁控制
+        function createPaginationControls() {
+            var paginationDiv = document.createElement("div");
+            
+            // 上一頁按鈕
+            var prevButton = document.createElement("button");
+            prevButton.innerHTML = "上一頁";
+            prevButton.className = "btn btn-sm";
+            prevButton.style.marginRight = "5px";
+            prevButton.onclick = function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderData();
+                }
+            };
+            
+            // 頁數信息
+            var pageInfo = document.createElement("span");
+            pageInfo.id = "pageInfo";
+            pageInfo.innerHTML = "1 / 111 頁";
+            pageInfo.style.margin = "0 10px";
+            
+            // 下一頁按鈕
+            var nextButton = document.createElement("button");
+            nextButton.innerHTML = "下一頁";
+            nextButton.className = "btn btn-sm";
+            nextButton.style.marginLeft = "5px";
+            nextButton.onclick = function() {
+                var totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderData();
+                }
+            };
+            
+            paginationDiv.appendChild(prevButton);
+            paginationDiv.appendChild(pageInfo);
+            paginationDiv.appendChild(nextButton);
+            
+            var table = document.getElementById("csie");
+            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+        }
+
+        // 根據名稱搜尋過濾資料
+        function searchByName(keyword) {
+            // 重置當前頁為第一頁
+            currentPage = 1;
+            
+            if (keyword.trim() === "") {
+                // 如果關鍵字為空，顯示所有資料
+                filteredData = [...dataset];
+            } else {
+                // 過濾包含關鍵字的資料（不區分大小寫）
+                filteredData = dataset.filter(function(data) {
+                    // 檢查標題或地點是否包含關鍵字
+                    var titleMatch = data.title.toLowerCase().includes(keyword.toLowerCase());
+                    var locationMatch = false;
+                    
+                    if (data.showInfo && Array.isArray(data.showInfo) && data.showInfo.length > 0) {
+                        locationMatch = data.showInfo[0].location.toLowerCase().includes(keyword.toLowerCase());
+                    }
+                    
+                    return titleMatch || locationMatch;
+                });
+            }
+            
+            // 重新渲染資料
+            renderData();
+        }
+
+        // 渲染資料到表格
+        function renderData() {
+            // 清空表格資料，保留表頭
+            delOldData();
+            
+            // 計算當前頁應該顯示的資料範圍
+            var startIndex = (currentPage - 1) * itemsPerPage;
+            var endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+            
+            // 計算總頁數
+            var totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            
+            // 獲取表格元素
+            var myTable = document.getElementById("csie");
+            
+            // 遍歷當前頁的資料
+            for (var i = startIndex; i < endIndex; i++) {
+                var data = filteredData[i];
+                
+                // 在表格尾部插入新行
+                var row = myTable.insertRow(-1);
+                
+                // 若為奇數行，設置淺灰色背景
+                if ((i - startIndex) % 2 !== 0) {
+                    row.style.backgroundColor = "#f2f2f2";
+                }
+                
+                // 在新行中插入單元格並設置內容
+                row.insertCell(0).innerHTML = data.title; // 名稱
+                
+                // 檢查 showInfo 是否存在且是陣列
+                if (data.showInfo && Array.isArray(data.showInfo) && data.showInfo.length > 0) {
+                    row.insertCell(1).innerHTML = data.showInfo[0].location || ""; // 地點
+                    row.insertCell(2).innerHTML = data.showInfo[0].price || ""; // 票價
+                } else {
+                    row.insertCell(1).innerHTML = ""; // 地點
+                    row.insertCell(2).innerHTML = ""; // 票價
+                }
+            }
+            
+            // 更新頁碼信息
+            var pageInfo = document.getElementById("pageInfo");
+            if (pageInfo) {
+                pageInfo.textContent = currentPage + " / " + (totalPages || 1) + " 頁";
+            }
+        }
+
+        // 清空表格資料的函數 (保留表頭)
+        function delOldData() {
+            var myTable = document.getElementById("csie");
+            
+            // 獲取表格行數
+            var rowCount = myTable.rows.length;
+            
+            // 從最後一行開始刪除，保留表頭
+            for (var i = rowCount - 1; i > 0; i--) {
+                myTable.deleteRow(i);
+            }
+        }
+    </script>
+</body>
+</html>
